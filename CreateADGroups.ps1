@@ -1,7 +1,7 @@
 ﻿Import-Module ActiveDirectory
 
 #Set the location of the host list to be used
-$HostList = Get-Content C:\Users\cleadmin\Documents\ADCleanup\testhostlist.txt
+$HostList = Get-Content C:\Users\cleadmin\Documents\ADCleanup\hostlist.txt
 
 #Set the Description strings for filling in the description information
 $DescriptionPrefix = "Allow users in this group RDP access to "
@@ -13,8 +13,8 @@ $OUForRDPSecGroups = "OU=RemoteDesktop_UserAccess,OU=Security,OU=Tusker_Groups,O
 ForEach ($hostname in $HostList){
 
 #Pre-fab the strings to be used in the group and description names
-$SecurityGroupName_rdpusers = "AllowRDP_" + $hostname
-$SecurityGroupName_localadmin = "LocalAdmin_" + $hostname
+$SecurityGroupName_rdpusers = "AllowRDP_" + $hostname.ToLower()
+$SecurityGroupName_localadmin = "LocalAdmin_" + $hostname.ToLower()
 $SecurityGroupDescription_rdpusers = $DescriptionPrefix + $hostname.ToUpper() + $DescriptionSuffix
 $SecurityGroupDescription_localadmins = $DescriptionPrefix + $hostname.ToUpper() + $DescriptionSuffix
 
@@ -30,7 +30,7 @@ Add-ADGroupMember "EnableRDPAccessOnServers" $SecurityGroupName_rdpusers
 #Create a group for local system admins
 New-ADGroup -Name $SecurityGroupName_localadmin -SamAccountName $SecurityGroupName_localadmin -GroupCategory Security -GroupScope Global -DisplayName $SecurityGroupName_localadmin -Path "OU=Servers_SetLocalAdmin,OU=Security,OU=Tusker_Groups,OU=Tusker,DC=tusk-watf,DC=tuskerdirect,DC=com" -Description $SecurityGroupDescription_localadmin
 
-#Add domain admins to the security group (Basically making sure domain admins have RDP access by defualt)
+#Add domain admins to the security group (Basically making sure domain admins have local admin access by defualt)
 Add-ADGroupMember $SecurityGroupName_localadmin "domain admins"
 }
 
