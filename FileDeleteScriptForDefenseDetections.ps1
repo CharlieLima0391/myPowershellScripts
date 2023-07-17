@@ -1,9 +1,10 @@
 ﻿# Import the CSV file
-$csvFile = "C:\Users\chrisd\Downloads\FileList.csv"
+$csvFile = "C:\Users\chrisd\Downloads\FileList.csv" #This will need changing to your own path.
 $csvData = Import-Csv -Path $csvFile
+$logDate = get-date -Format yyyy-MM-dd-hh-mm-ss
 
 # Specify the log file path
-$logFile = "C:\Users\chrisd\Downloads\LogFile.txt"
+$logFile = "C:\Users\chrisd\Downloads\LogFile_$logDate.txt" #This will need changing to your own path.
 
 # Loop through each row in the CSV
 foreach ($row in $csvData) {
