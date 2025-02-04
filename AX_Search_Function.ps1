@@ -1,5 +1,12 @@
 ﻿Import-Module ExchangeOnlineManagement
 
+'''
+The exchange module is not installed, it will need to be installed with the details that can be found here
+https://learn.microsoft.com/en-us/powershell/exchange/connect-to-exchange-online-powershell?view=exchange-ps
+and a connection established to the exchange
+'''
+ 
+
 #$EmailList = Get-Content C:\Users\WDAGUtilityAccount\Desktop\MailBoxList.txt
 
 
