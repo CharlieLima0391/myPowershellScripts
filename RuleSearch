@@ -1,17 +1,111 @@
-# Write mailbox being checked
-"Checking Mailbox: $email" | Out-File -FilePath $LogFile -Append
+<#
+    Script Name: SearchInboxRules_Verbose.ps1
+    Description: 
+        A PowerShell script that checks for the ExchangeOnlineManagement module,
+        installs and imports it if necessary (with verbose output), 
+        then searches all mailboxes for inbox rules containing a user-provided 
+        string in the rule name. The user can opt to print these results on screen 
+        or export them to a CSV file. 
+        This script is original code, referencing Microsoft documentation for 
+        module installation and Exchange cmdlets.
 
-# Retrieve any inbox rules that contain "AX" in the Name
-$axRules = Get-InboxRule -Mailbox $email | Where-Object { $_.Name -like "*AX*" }
+    Note:
+        This script attempts to install modules as needed; you might need to run
+        PowerShell with elevated privileges. Also, you should already be connected
+        to Exchange Online before the final Get-Mailbox / Get-InboxRule calls are 
+        made, or you can uncomment the Connect-ExchangeOnline command and provide
+        valid credentials to automate that step.
+#>
 
-if ($axRules) {
-    "Rules Containing 'AX' in the name:" | Out-File -FilePath $LogFile -Append
-    
-    # Print each rule’s details to the log file
-    $axRules | Out-String | Out-File -FilePath $LogFile -Append
+param(
+    [switch]$VerboseOutput
+)
+
+# Import .NET assemblies for Windows Forms dialogs
+Write-Host "Loading System.Windows.Forms and System.Drawing assemblies for file dialogs..." -ForegroundColor Green
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Define the required module name
+$ModuleName = "ExchangeOnlineManagement"
+
+Write-Host "Checking if the '$ModuleName' module is installed..." -ForegroundColor Green
+$ModuleInstalled = Get-Module -ListAvailable -Name $ModuleName
+
+if (!$ModuleInstalled) {
+    Write-Host "'$ModuleName' module not found. Installing now..." -ForegroundColor Yellow
+    # Attempt to install the module for the current user
+    # Verbose switch used to give user details
+    Install-Module $ModuleName -Scope CurrentUser -Force -Verbose:$VerboseOutput
 }
 else {
-    "No Rules Match" | Out-File -FilePath $LogFile -Append
+    Write-Host "'$ModuleName' module is already installed." -ForegroundColor Green
 }
 
-"----- Next -----" | Out-File -FilePath $LogFile -Append
+Write-Host "Importing the '$ModuleName' module..." -ForegroundColor Green
+Import-Module $ModuleName -Verbose:$VerboseOutput
+
+# If you want to connect automatically, uncomment the following lines 
+# and substitute valid credentials:
+#Write-Host "Attempting to connect to Exchange Online..." -ForegroundColor Green
+#Connect-ExchangeOnline -UserPrincipalName YourUPN@YourDomain.com -Verbose:$VerboseOutput
+
+Write-Host "Prompting user for the text to look for in rule names..." -ForegroundColor Green
+$SearchString = Read-Host "Please enter the text to look for in rule names"
+
+Write-Host "Prompting user for output choice: screen or CSV..." -ForegroundColor Green
+Write-Host "Would you like to see the results on the screen or export to a CSV file?" -ForegroundColor Cyan
+$OutputOption = Read-Host "Enter 'screen' or 'csv'"
+
+Write-Host "Retrieving all mailboxes from Exchange Online..." -ForegroundColor Green
+$mailboxes = Get-Mailbox -ResultSize Unlimited
+
+Write-Host "Preparing to check each mailbox for rules containing '$SearchString' in the name..." -ForegroundColor Green
+$MatchedRules = @()
+
+foreach ($mbx in $mailboxes) {
+    Write-Host "Checking mailbox: $($mbx.PrimarySmtpAddress)" -ForegroundColor Yellow
+    $rules = Get-InboxRule -Mailbox $mbx.PrimarySmtpAddress -Verbose:$VerboseOutput | Where-Object {
+        $_.Name -like "*$SearchString*"
+    }
+    
+    if ($rules) {
+        Write-Host "Found $($rules.Count) matching rule(s) for $($mbx.PrimarySmtpAddress)." -ForegroundColor Green
+        $MatchedRules += $rules
+    }
+    else {
+        Write-Host "No matching rules found for $($mbx.PrimarySmtpAddress)." -ForegroundColor DarkGray
+    }
+}
+
+Write-Host "Finished scanning all mailboxes." -ForegroundColor Green
+
+if ($OutputOption -eq "csv") {
+    Write-Host "User requested CSV output. Launching save file dialog..." -ForegroundColor Green
+    $SaveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $SaveFileDialog.Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+    $SaveFileDialog.Title = "Select a location to save the CSV file"
+    $DialogResult = $SaveFileDialog.ShowDialog()
+
+    if ($DialogResult -eq "OK") {
+        $OutputFile = $SaveFileDialog.FileName
+        Write-Host "Exporting rules to $OutputFile..." -ForegroundColor Green
+        $MatchedRules | Export-Csv -Path $OutputFile -NoTypeInformation
+        Write-Host "Export complete." -ForegroundColor Green
+    }
+    else {
+        Write-Host "File save cancelled. No CSV created." -ForegroundColor DarkGray
+    }
+}
+else {
+    Write-Host "User requested on-screen output." -ForegroundColor Green
+    if ($MatchedRules) {
+        Write-Host "The following rules match '$SearchString':" -ForegroundColor Cyan
+        $MatchedRules
+    }
+    else {
+        Write-Host "No rules containing '$SearchString' were found across all mailboxes." -ForegroundColor Cyan
+    }
+}
+
+Write-Host "Script execution completed." -ForegroundColor Green
