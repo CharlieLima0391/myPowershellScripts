@@ -1,0 +1,17 @@
+# Write mailbox being checked
+"Checking Mailbox: $email" | Out-File -FilePath $LogFile -Append
+
+# Retrieve any inbox rules that contain "AX" in the Name
+$axRules = Get-InboxRule -Mailbox $email | Where-Object { $_.Name -like "*AX*" }
+
+if ($axRules) {
+    "Rules Containing 'AX' in the name:" | Out-File -FilePath $LogFile -Append
+    
+    # Print each rule’s details to the log file
+    $axRules | Out-String | Out-File -FilePath $LogFile -Append
+}
+else {
+    "No Rules Match" | Out-File -FilePath $LogFile -Append
+}
+
+"----- Next -----" | Out-File -FilePath $LogFile -Append
